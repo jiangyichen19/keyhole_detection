@@ -4,19 +4,15 @@ import json
 from ultralytics import YOLO
 from get_distance import DistanceEstimator
 import numpy as np
+'''
+##############################################代码使用说明######################################
+1.调用process_img需要先调用函数init_model初始化模型
+2.将init_model的返回值做作为参数传入process_img
+3.具体用法参考：keyhole_detection/src/scripts/test.py
 
+'''
 
-
-#
-#参数:
-#   img_path: 要识别的图片的路径
-#
-#返回:
-#   返回结果为各赛题中要求的识别结果，具体格式可参考提供压缩包中的 “图片对应输出结果.txt” 中一张图片对应的结果
-#
-def process_img(img_path):
-    # 进行推理
-        # 加载模型
+def init_model():
     model = YOLO(r"../pth_model/yolo11x_epoch500_batch1_size640_model-x2/weights/best.pt")  # pretrained YOLO11n model
     obb_model = YOLO(r"../pth_model/obb-yolo11x_epoch500_batch1_size640_model-x/weights/best.pt")  # 加载 obb 模型
     estimator = DistanceEstimator()
@@ -24,28 +20,43 @@ def process_img(img_path):
     coefficients_path = r"../calibration/coefficients.json"
     # 使用新添加的函数加载系数
     estimator.load_coefficients(coefficients_path)
+    # 减去
+    return model, obb_model, estimator
     
-    
+#
+#参数:
+#   img_path: 要识别的图片的路径
+#
+#返回:
+#   返回结果为各赛题中要求的识别结果，具体格式可参考提供压缩包中的 “图片对应输出结果.txt” 中一张图片对应的结果
+#
+## 传入参数分别为锁孔检测模型，旋转角度检测模型，距离估计模型
+def process_img(model,obb_model,estimator,img_path):
+
     results = model([img_path])
     result = results[0]
     boxes = result.boxes  # Boxes object for bounding box outputs
-    is_key_in = False
-    x, y, w, h = None, None, None, None
-    distance = 0
-    lock_angle = 0
-    key_angle = 0
-    is_lock_original = True
 
-    if len(boxes) > 0:
-        class_id = int(boxes.cls[0].item())
+    # 初始化标注数据列表
+    label_data_list = []
+
+    for box_idx in range(len(boxes)):
+        is_key_in = False
+        x, y, w, h = None, None, None, None
+        distance = 0
+        lock_angle = 0
+        key_angle = 0
+        is_lock_original = True
+
+        class_id = int(boxes.cls[box_idx].item())
         is_key_in = class_id != 0
 
         # 获取第一张图片的尺寸
         img = result.orig_img
         img_height, img_width = img.shape[:2]
 
-        # 获取边界框信息，假设使用第一个检测框
-        box = boxes[0].cpu().numpy()
+        # 获取边界框信息
+        box = boxes[box_idx].cpu().numpy()
         xyxy = box.xyxy[0]  # x1, y1, x2, y2 格式
         x = int(xyxy[0])
         y = int(xyxy[1])
@@ -81,15 +92,17 @@ def process_img(img_path):
                 xywhr = obb_result.obb.xywhr  # center-x, center-y, width, height, angle (radians)
                 # 将弧度转换为角度
                 lock_angle = xywhr[..., -1].cpu().numpy() * (180 / 3.141592653589793) if xywhr.numel() > 0 else 0
+                
+                # print(lock_angle)
+                lock_angle = lock_angle.tolist()[0]
                 key_angle = lock_angle  # 假设锁和钥匙角度相同，可根据实际情况修改
                 if lock_angle >= 10:
                     is_lock_original = False
                 
                 # is_lock_original = lock_angle == 0 and key_angle == 0
 
-    # 构建标注数据
-    label_data = {
-        os.path.basename(img_path): {
+        # 构建单个标注数据
+        single_label_data = {
             "x": x,
             "y": y,
             "w": w,
@@ -100,20 +113,15 @@ def process_img(img_path):
             "is_key_in": is_key_in,
             "key_angle": key_angle
         }
+
+        label_data_list.append(single_label_data)
+
+    # 构建最终标注数据
+    label_data = {
+        os.path.basename(img_path): label_data_list
     }
-    
-    # 保存结果到 label.json
-    for img_name, data in all_label_data.items():
-        if isinstance(data['distance'], np.float64):
-            data['distance'] = float(data['distance'])
-        if isinstance(data['lock_angle'], np.ndarray):
-            data['lock_angle'] = data['lock_angle'].tolist()
-        if isinstance(data['key_angle'], np.ndarray):
-            data['key_angle'] = data['key_angle'].tolist()
-            
             
     return label_data
-
 #
 #以下代码仅作为选手测试代码时使用，仅供参考，可以随意修改
 #但是最终提交代码后，process.py文件是作为模块进行调用，而非作为主程序运行
