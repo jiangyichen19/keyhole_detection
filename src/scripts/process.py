@@ -7,7 +7,7 @@ import numpy as np
 import math
 
 # 全局变量
-model = YOLO(r"../pth_model/yolo11n_epoch500_batch1_size640_model-n/weights/best.pt")  # pretrained YOLO11n model
+model = YOLO(r"../pth_model/yolo11x_epoch500_batch1_size640_model-x2/weights/best.pt")  # pretrained YOLO11n model
 obb_model = YOLO(r"../pth_model/hist_obb-yolo11x_epoch600_batch1_size640_model-n/weights/best.pt")  # 加载 obb 模型
 estimator = DistanceEstimator()
 
@@ -45,8 +45,8 @@ def process_img(img_path):
     is_key_in = False
     x, y, w, h = None, None, None, None
     distance = 0
-    lock_angle = 0
-    key_angle = 0
+    lock_angle = 90
+    key_angle = 90
     is_lock_original = True
 
     if len(boxes) > 0:
@@ -99,13 +99,18 @@ def process_img(img_path):
             for obb_result in obb_results:
                 xywhr = obb_result.obb.xywhr  # center-x, center-y, width, height, angle (radians)
                 # 将弧度转换为角度
-                data = {}  # 确保字典初始化
-                lock_angle = xywhr[..., -1].cpu().numpy() * (180 / math.pi) if xywhr.numel() > 0 else 0.0
+                data = {}
+                lock_angle = xywhr[..., -1].cpu().numpy() * (180 / math.pi) if xywhr.numel() > 0 else np.array([90])
+                print("----------------------")
+                print(lock_angle)
+                # 确保转换为原生Python类型
+                data['lock_angle'] = float(lock_angle[0].item()) if lock_angle.size > 0 else 0.0
                 
-                # 直接赋值取代类型检查
-                data['lock_angle'] = float(lock_angle[0]) if lock_angle.size > 0 else 0.0
+                # 四舍五入到小数点后两位
+                data['lock_angle'] = round(data['lock_angle'], 2)
                 
-                key_angle = data['lock_angle']
+                key_angle = int(data['lock_angle'])
+                lock_angle = int(data['lock_angle'])
                 
                 # key_angle = lock_angle  # 假设锁和钥匙角度相同，可根据实际情况修改
                 if lock_angle >= 10:
@@ -143,7 +148,7 @@ if __name__ == '__main__':
     
 
      ### !!!!!!!!!!!!!!!!!!!!!!!!!!!替换为你要测试的图片路径 ###
-    imgs_folder = r'/home/sophgo/Code/yichen/keyhole_detection/src/dataset/images/val'
+    imgs_folder = r'/home/sophgo/Code/yichen/keyhole_detection/src/dataset/images/train'
     img_paths = [os.path.join(imgs_folder, f) for f in os.listdir(imgs_folder) if f.endswith(('.jpg', '.png'))]
     def now():
         return int(time.time()*1000)
