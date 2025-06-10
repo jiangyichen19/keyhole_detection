@@ -2,7 +2,7 @@ import sys
 # 添加 process.py 所在目录到系统路径
 sys.path.append('/home/sophgo/Code/yichen/calibration/keyhole_detection/src/scripts')
 
-from process import process_img,init_model
+from process import process_img
 import os
 
 # 替换为你要测试的图片路径

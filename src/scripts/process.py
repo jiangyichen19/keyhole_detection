@@ -4,24 +4,22 @@ import json
 from ultralytics import YOLO
 from get_distance import DistanceEstimator
 import numpy as np
+
+# 全局变量
+model = YOLO(r"../pth_model/yolo11x_epoch500_batch1_size640_model-x2/weights/best.pt")  # pretrained YOLO11n model
+obb_model = YOLO(r"../pth_model/obb-yolo11x_epoch500_batch1_size640_model-x/weights/best.pt")  # 加载 obb 模型
+estimator = DistanceEstimator()
+
+coefficients_path = r"../calibration/coefficients.json"
+# 使用新添加的函数加载系数
+estimator.load_coefficients(coefficients_path)
+
 '''
 ##############################################代码使用说明######################################
 1.调用process_img需要先调用函数init_model初始化模型
 2.将init_model的返回值做作为参数传入process_img
 3.具体用法参考：keyhole_detection/src/scripts/test.py
-
 '''
-
-def init_model():
-    model = YOLO(r"../pth_model/yolo11x_epoch500_batch1_size640_model-x2/weights/best.pt")  # pretrained YOLO11n model
-    obb_model = YOLO(r"../pth_model/obb-yolo11x_epoch500_batch1_size640_model-x/weights/best.pt")  # 加载 obb 模型
-    estimator = DistanceEstimator()
-
-    coefficients_path = r"../calibration/coefficients.json"
-    # 使用新添加的函数加载系数
-    estimator.load_coefficients(coefficients_path)
-    # 减去
-    return model, obb_model, estimator
     
 #
 #参数:
@@ -31,14 +29,10 @@ def init_model():
 #   返回结果为各赛题中要求的识别结果，具体格式可参考提供压缩包中的 “图片对应输出结果.txt” 中一张图片对应的结果
 #
 ## 传入参数分别为锁孔检测模型，旋转角度检测模型，距离估计模型
-def process_img(img_path):
-    model = YOLO(r"../pth_model/yolo11x_epoch500_batch1_size640_model-x2/weights/best.pt")  # pretrained YOLO11n model
-    obb_model = YOLO(r"../pth_model/obb-yolo11x_epoch500_batch1_size640_model-x/weights/best.pt")  # 加载 obb 模型
-    estimator = DistanceEstimator()
 
-    coefficients_path = r"../calibration/coefficients.json"
-    # 使用新添加的函数加载系数
-    estimator.load_coefficients(coefficients_path)
+
+def process_img(img_path):
+
 
     results = model([img_path])
     result = results[0]
