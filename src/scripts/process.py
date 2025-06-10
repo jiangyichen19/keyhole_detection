@@ -130,11 +130,11 @@ def process_img(img_path):
     # label_data_list.append(single_label_data)
 
     # 构建最终标注数据
-    label_data = {
-        os.path.basename(img_path): single_label_data
-    }
+    # label_data = {
+    #     single_label_data
+    # }
             
-    return label_data
+    return single_label_data
 #
 #以下代码仅作为选手测试代码时使用，仅供参考，可以随意修改
 #但是最终提交代码后，process.py文件是作为模块进行调用，而非作为主程序运行
