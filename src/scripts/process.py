@@ -101,6 +101,17 @@ def process_img(img_path):
             "key_angle": key_angle
         }
     }
+    
+    # 保存结果到 label.json
+    for img_name, data in all_label_data.items():
+        if isinstance(data['distance'], np.float64):
+            data['distance'] = float(data['distance'])
+        if isinstance(data['lock_angle'], np.ndarray):
+            data['lock_angle'] = data['lock_angle'].tolist()
+        if isinstance(data['key_angle'], np.ndarray):
+            data['key_angle'] = data['key_angle'].tolist()
+            
+            
     return label_data
 
 #
@@ -137,14 +148,7 @@ if __name__ == '__main__':
             min_time = run_time
         all_label_data.update(result)
 
-    # 保存结果到 label.json
-    for img_name, data in all_label_data.items():
-        if isinstance(data['distance'], np.float64):
-            data['distance'] = float(data['distance'])
-        if isinstance(data['lock_angle'], np.ndarray):
-            data['lock_angle'] = data['lock_angle'].tolist()
-        if isinstance(data['key_angle'], np.ndarray):
-            data['key_angle'] = data['key_angle'].tolist()
+    
             
     with open('../../result/label.json', 'w') as f:
         json.dump(all_label_data, f)
