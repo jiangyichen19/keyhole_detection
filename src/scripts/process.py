@@ -31,7 +31,14 @@ def init_model():
 #   返回结果为各赛题中要求的识别结果，具体格式可参考提供压缩包中的 “图片对应输出结果.txt” 中一张图片对应的结果
 #
 ## 传入参数分别为锁孔检测模型，旋转角度检测模型，距离估计模型
-def process_img(model,obb_model,estimator,img_path):
+def process_img(img_path):
+    model = YOLO(r"../pth_model/yolo11x_epoch500_batch1_size640_model-x2/weights/best.pt")  # pretrained YOLO11n model
+    obb_model = YOLO(r"../pth_model/obb-yolo11x_epoch500_batch1_size640_model-x/weights/best.pt")  # 加载 obb 模型
+    estimator = DistanceEstimator()
+
+    coefficients_path = r"../calibration/coefficients.json"
+    # 使用新添加的函数加载系数
+    estimator.load_coefficients(coefficients_path)
 
     results = model([img_path])
     result = results[0]
@@ -40,15 +47,15 @@ def process_img(model,obb_model,estimator,img_path):
     # 初始化标注数据列表
     label_data_list = []
 
-    for box_idx in range(len(boxes)):
-        is_key_in = False
-        x, y, w, h = None, None, None, None
-        distance = 0
-        lock_angle = 0
-        key_angle = 0
-        is_lock_original = True
+    is_key_in = False
+    x, y, w, h = None, None, None, None
+    distance = 0
+    lock_angle = 0
+    key_angle = 0
+    is_lock_original = True
 
-        class_id = int(boxes.cls[box_idx].item())
+    if len(boxes) > 0:
+        class_id = int(boxes.cls[0].item())
         is_key_in = class_id != 0
 
         # 获取第一张图片的尺寸
@@ -56,7 +63,7 @@ def process_img(model,obb_model,estimator,img_path):
         img_height, img_width = img.shape[:2]
 
         # 获取边界框信息
-        box = boxes[box_idx].cpu().numpy()
+        box = boxes[0].cpu().numpy()
         xyxy = box.xyxy[0]  # x1, y1, x2, y2 格式
         x = int(xyxy[0])
         y = int(xyxy[1])
@@ -82,11 +89,17 @@ def process_img(model,obb_model,estimator,img_path):
 
             # 保存临时图像文件（如果模型需要文件路径输入）
             import tempfile
-            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
-                cv2.imwrite(tmp.name, resized_img)
+            tmp_file = tempfile.NamedTemporaryFile(suffix='.jpg', delete=False)
+            tmp_file.close()  # 关闭文件对象，以便其他操作可以访问该文件
+            try:
+                cv2.imwrite(tmp_file.name, resized_img)
                 # 使用调整大小后的图像执行 obb 角度检测
-                obb_results = obb_model(tmp.name)
-                os.unlink(tmp.name)
+                obb_results = obb_model(tmp_file.name)
+            finally:
+                try:
+                    os.unlink(tmp_file.name)
+                except Exception as e:
+                    print(f"删除临时文件 {tmp_file.name} 时出错: {e}")
 
             for obb_result in obb_results:
                 xywhr = obb_result.obb.xywhr  # center-x, center-y, width, height, angle (radians)
@@ -101,24 +114,24 @@ def process_img(model,obb_model,estimator,img_path):
                 
                 # is_lock_original = lock_angle == 0 and key_angle == 0
 
-        # 构建单个标注数据
-        single_label_data = {
-            "x": x,
-            "y": y,
-            "w": w,
-            "h": h,
-            "distance": distance,
-            "is_lock_original": is_lock_original,
-            "lock_angle": lock_angle,
-            "is_key_in": is_key_in,
-            "key_angle": key_angle
-        }
+    # 构建单个标注数据
+    single_label_data = {
+        "x": x,
+        "y": y,
+        "w": w,
+        "h": h,
+        "distance": distance,
+        "is_lock_original": is_lock_original,
+        "lock_angle": lock_angle,
+        "is_key_in": is_key_in,
+        "key_angle": key_angle
+    }
 
-        label_data_list.append(single_label_data)
+    # label_data_list.append(single_label_data)
 
     # 构建最终标注数据
     label_data = {
-        os.path.basename(img_path): label_data_list
+        os.path.basename(img_path): single_label_data
     }
             
     return label_data
