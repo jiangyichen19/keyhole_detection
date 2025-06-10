@@ -16,6 +16,16 @@ import numpy as np
 #
 def process_img(img_path):
     # 进行推理
+        # 加载模型
+    model = YOLO(r"../pth_model/yolo11x_epoch500_batch1_size640_model-x2/weights/best.pt")  # pretrained YOLO11n model
+    obb_model = YOLO(r"../pth_model/obb-yolo11x_epoch500_batch1_size640_model-x/weights/best.pt")  # 加载 obb 模型
+    estimator = DistanceEstimator()
+
+    coefficients_path = r"../calibration/coefficients.json"
+    # 使用新添加的函数加载系数
+    estimator.load_coefficients(coefficients_path)
+    
+    
     results = model([img_path])
     result = results[0]
     boxes = result.boxes  # Boxes object for bounding box outputs
@@ -100,14 +110,7 @@ def process_img(img_path):
 #
 if __name__ == '__main__':
     
-    # 加载模型
-    model = YOLO(r"../pth_model/yolo11x_epoch300_batch1_size640_model-x2/weights/best.pt")  # pretrained YOLO11n model
-    obb_model = YOLO(r"../pth_model/obb-yolo11x_epoch500_batch1_size640_model-x/weights/best.pt")  # 加载 obb 模型
-    estimator = DistanceEstimator()
 
-    coefficients_path = r"../calibration/coefficients.json"
-    # 使用新添加的函数加载系数
-    estimator.load_coefficients(coefficients_path)
      ### !!!!!!!!!!!!!!!!!!!!!!!!!!!替换为你要测试的图片路径 ###
     imgs_folder = r'/home/sophgo/Code/yichen/keyhole_detection/src/dataset/images/val'
     img_paths = [os.path.join(imgs_folder, f) for f in os.listdir(imgs_folder) if f.endswith(('.jpg', '.png'))]
