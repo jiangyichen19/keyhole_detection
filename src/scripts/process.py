@@ -4,10 +4,11 @@ import json
 from ultralytics import YOLO
 from get_distance import DistanceEstimator
 import numpy as np
+import math
 
 # 全局变量
-model = YOLO(r"../pth_model/yolo11x_epoch500_batch1_size640_model-x2/weights/best.pt")  # pretrained YOLO11n model
-obb_model = YOLO(r"../pth_model/obb-yolo11x_epoch500_batch1_size640_model-x/weights/best.pt")  # 加载 obb 模型
+model = YOLO(r"../pth_model/yolo11n_epoch500_batch1_size640_model-n/weights/best.pt")  # pretrained YOLO11n model
+obb_model = YOLO(r"../pth_model/hist_obb-yolo11x_epoch600_batch1_size640_model-n/weights/best.pt")  # 加载 obb 模型
 estimator = DistanceEstimator()
 
 coefficients_path = r"../calibration/coefficients.json"
@@ -98,11 +99,15 @@ def process_img(img_path):
             for obb_result in obb_results:
                 xywhr = obb_result.obb.xywhr  # center-x, center-y, width, height, angle (radians)
                 # 将弧度转换为角度
-                lock_angle = xywhr[..., -1].cpu().numpy() * (180 / 3.141592653589793) if xywhr.numel() > 0 else 0
+                data = {}  # 确保字典初始化
+                lock_angle = xywhr[..., -1].cpu().numpy() * (180 / math.pi) if xywhr.numel() > 0 else 0.0
                 
-                # print(lock_angle)
-                lock_angle = lock_angle.tolist()[0]
-                key_angle = lock_angle  # 假设锁和钥匙角度相同，可根据实际情况修改
+                # 直接赋值取代类型检查
+                data['lock_angle'] = float(lock_angle[0]) if lock_angle.size > 0 else 0.0
+                
+                key_angle = data['lock_angle']
+                
+                # key_angle = lock_angle  # 假设锁和钥匙角度相同，可根据实际情况修改
                 if lock_angle >= 10:
                     is_lock_original = False
                 
