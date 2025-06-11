@@ -45,8 +45,8 @@ def process_img(img_path):
     is_key_in = False
     x, y, w, h = None, None, None, None
     distance = 0
-    lock_angle = 90
-    key_angle = 90
+    lock_angle = 0
+    key_angle = 0
     is_lock_original = True
 
     if len(boxes) > 0:
@@ -73,7 +73,7 @@ def process_img(img_path):
         )
         distance = float(distance)
 
-        if distance > 35:
+        if distance < 30:
             # 裁剪出检测框对应的图像区域
             x1, y1, x2, y2 = map(int, xyxy)
             cropped_img = img[y1:y2, x1:x2]
@@ -97,12 +97,24 @@ def process_img(img_path):
                     print(f"删除临时文件 {tmp_file.name} 时出错: {e}")
 
             for obb_result in obb_results:
+                # print(obb_result)
+                if not obb_result:
+                    continue
                 xywhr = obb_result.obb.xywhr  # center-x, center-y, width, height, angle (radians)
                 # 将弧度转换为角度
                 data = {}
                 lock_angle = xywhr[..., -1].cpu().numpy() * (180 / math.pi) if xywhr.numel() > 0 else np.array([90])
+                # 获取宽高数据
+                width = xywhr[..., 2].item()  # 宽度
+                height = xywhr[..., 3].item() # 高度
+                
+                # 判断横向框且角度接近0度的情况
+                if width > height and abs(lock_angle[0]) <= 5:
+                    lock_angle[0] = 90.0
+                if width < height and abs(lock_angle[0]) <= 5:
+                    lock_angle[0] = 0
                 print("----------------------")
-                print(lock_angle)
+                # print(lock_angle)
                 # 确保转换为原生Python类型
                 data['lock_angle'] = float(lock_angle[0].item()) if lock_angle.size > 0 else 0.0
                 
@@ -156,7 +168,7 @@ if __name__ == '__main__':
     count_time = 0
     max_time = 0
     min_time = now()
-    all_label_data = {}
+    all_label_data = []
 
     for img_path in img_paths:
         print(img_path,':')
@@ -171,12 +183,12 @@ if __name__ == '__main__':
             max_time = run_time
         if run_time < min_time:
             min_time = run_time
-        all_label_data.update(result)
+        all_label_data.append(result)
 
     
             
     with open('../../result/label.json', 'w') as f:
-        json.dump(all_label_data, f)
+        json.dump(all_label_data, f, indent=4)
 
     print('\n')
     print('avg time: ',int(count_time/len(img_paths)),'ms')
