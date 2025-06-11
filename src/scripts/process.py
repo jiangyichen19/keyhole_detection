@@ -111,7 +111,7 @@ def process_img(img_path):
                 # 判断横向框且角度接近0度的情况
                 if width > height and abs(lock_angle[0]) <= 5:
                     lock_angle[0] = 90.0
-                if width < height and abs(lock_angle[0]) <= 5:
+                if width < height and abs(lock_angle[0]) >=85:
                     lock_angle[0] = 0
                 print("----------------------")
                 # print(lock_angle)
